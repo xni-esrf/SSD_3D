@@ -1,0 +1,21 @@
+name: noise2inverse_3d_xni
+channels:
+  - pytorch
+  - nvidia
+  - conda-forge
+dependencies:
+  - python=3.10
+  - nvidia::cudatoolkit=11.6
+  - cudnn=8.4
+  - pytorch=1.12
+  - torchio=0.18.86
+  - torchvision=0.13.1
+  - numpy=1.21.*
+  - scipy=1.9.1
+  - matplotlib=3.5.1
+  - pillow=9.2.0
+  - tifffile=2021.7.2
+  - tqdm=4.64.0
+
+
+

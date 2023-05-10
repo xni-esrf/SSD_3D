@@ -1,9 +1,6 @@
 import numpy as np
 import torch
 import json
-import pickle
-import os
-import sys
 import tifffile
 from argparse import ArgumentParser
 from pathlib import Path
@@ -12,6 +9,7 @@ import torchio as tio
 
 import datasets 
 from models.unet import UNet
+from tools.quantization import bit_quantization
 
 def parse_arguments():
     """
@@ -25,7 +23,8 @@ def parse_arguments():
     parse.add_argument('--extraction_stride_sizes', nargs=3, type=int, default=[50,50,50], help='Specify the stride used to extract successive patches for each dimension. If zeros are given, extracted patches do not overlap.')
     parse.add_argument('--print_orthogonal', action='store_const', default=1, const=3, help='If set, denoised volumes is saved three times. Saved images of each occurence are respectively oriented in the xy, xz, and yz planes. If not set, only the xy plane is considered')
     parse.add_argument('--batch_size', default=32, type=int, help='')
-    parse.add_argument('--projection_set', type=str, default="all_projections", help='Specify which recontruction should be loaded. This reconstruction is defined by the projection set used to get it')
+    parse.add_argument('--projection_set', type=str, default="all_projections", help='Specify which recontruction should be loaded. This reconstruction is defined by the projection set used to get it.')
+    parse.add_argument('--nb_bit_quant', default=None, type=int, help='Quantize the output pixel values using a uniform quantization. The number of quantization levels equals 2^num_bits')
     return parse.parse_args()
 
 def load_model(checkpoint_path, cuda_devices):
@@ -77,8 +76,8 @@ cudabase = torch.device(cudabase_name)
 params = parse_arguments()
 
 # Load the hyper-parameters used to train the loaded model
-network_param_file = open(str(Path(params.checkpoint_path).parent/ "params.json"), 'r')
-network_params = json.load(network_param_file)
+with open(str(Path(params.checkpoint_path).parent/ "params.json"), 'r') as network_param_file :
+    network_params = json.load(network_param_file)
 test_patch_size = network_params['train_patch_size']
 
 # Create the directory where denoised slices are saved
@@ -101,6 +100,9 @@ with torch.no_grad():
 
 pred_volume = np.asarray(pred_volume)
 pred_volume = np.squeeze(pred_volume)
+if params.nb_bit_quant:
+    print("Quantizing array values...")
+    pred_volume = bit_quantization(pred_volume, params.nb_bit_quant)
 
 # Save denoised volume
 save_output(pred_volume, params.print_orthogonal, output_dir)

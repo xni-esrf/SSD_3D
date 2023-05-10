@@ -1,14 +1,10 @@
 import json
-import numpy as np
 import torch
-import os
-import pickle
 import matplotlib.pyplot as plt
 plt.switch_backend('agg')
 from pathlib import Path
 from tqdm import tqdm
 from argparse import ArgumentParser
-import torchvision
 import torchio as tio
 
 import datasets
@@ -17,13 +13,13 @@ from models.unet import UNet
 
 def parse_arguments():
     parse = ArgumentParser(description="Train a model with Noise2Inverse, using 3d convolutions")
-    parse.add_argument('dataset_name', help='Name of the processed dataset. Information about the processed dataset must be set in the dataset.py file')
+    parse.add_argument('dataset_name', help='Name of a json file in the metadata folder, which is used to load information about the processed dataset')
     parse.add_argument('checkpoint_dir', help='Path of the directory where checkpoints are stored')
     parse.add_argument('loss_dir', help='Path of the directory where the training loss curve is stored')
     parse.add_argument('--loaded_checkpoint_path', default=None, help="If set, load the checkpoint located at the provided path")
     parse.add_argument('--train_patch_size', default=[100,100,100], nargs=3, type=int, help='Training patch size')
     parse.add_argument('--nb_patch_per_epoch', default=18000, type=int, help="Define the number of patches to process in one epoch. It basically sets the duration of one epoch") 
-    parse.add_argument('--nb_train_epoch', default=100, type=int, help="number of training epochs")
+    parse.add_argument('--nb_train_epoch', default=100, type=int, help="The number of training epochs")
     parse.add_argument('--save_interval', default=5, type=int, help='The number of epochs to run between each checkpoint saving')
     parse.add_argument('--batch_size', default=32, type=int, help="The number of patch per batch")
     parse.add_argument('--lr', default=0.001, type=float, help="The learning rate")
@@ -72,11 +68,10 @@ def train_model(dl, model, loss_func, optimizer, save_interval, checkpoint_dir, 
         model.load_state_dict(state['state_dict'])
         optimizer.load_state_dict(state['optimizer'])
         start_epoch_nb = state['epoch']+1
-
-    # Prep the loss file, read in current contents if any and then overwrite
-    loss_values = []
+        print(start_epoch_nb)
 
     # training loop
+    loss_values = []
     for epoch in range(start_epoch_nb, nb_train_epoch):
         epoch_loss = 0
         for batch in tqdm(dl):
@@ -84,7 +79,8 @@ def train_model(dl, model, loss_func, optimizer, save_interval, checkpoint_dir, 
             # Constitute input and target with volumes extrated from split1_volume and split2_volume
             input = torch.concat([batch["split1_volume"][tio.DATA][0:dl.batch_size//2], batch["split2_volume"][tio.DATA][dl.batch_size//2:]], 0)
             target = torch.concat([batch["split2_volume"][tio.DATA][0:dl.batch_size//2], batch["split1_volume"][tio.DATA][dl.batch_size//2:]], 0)
-            # TODO implement a parallel geometric transformation
+
+            # For each input-target training couple, pick a random geometric transformation, and apply it to both input and target
             for i in range(input.shape[0]):
                 input[i], target[i] = datasets.geom_transform([input[i], target[i]])
             input, target = input.to(device), target.to(device)
@@ -103,11 +99,11 @@ def train_model(dl, model, loss_func, optimizer, save_interval, checkpoint_dir, 
             epoch_loss += loss_val/len(dl)
         print("Mean loss value of the epoch : {}".format(epoch_loss))
 
-        # Save network if the interval has been reached
+        # Save network if the interval has been reached, or if training ends
         if epoch % save_interval == 0 or epoch==nb_train_epoch-1:
             print("saving interval reached (epoch n°{}), saving checkpoint...".format(epoch))
             save_model(model, optimizer, epoch, checkpoint_dir / f"weights_epoch_{epoch}.torch")
-        # Recording epoch loss
+        # Recording current epoch loss value
         loss_values.append(epoch_loss.detach().cpu())
 
     return loss_values
@@ -140,14 +136,13 @@ loss_dir.mkdir(exist_ok=True)
 cuda_devices = [i for i in range(torch.cuda.device_count())]
 
 # Save the training parameters
-par_file = open(checkpoint_dir / "params.json", 'w')
-json.dump(dict(vars(params)), par_file)
-par_file.close()
+with open(checkpoint_dir / "params.json", 'w') as par_file:
+    json.dump(dict(vars(params)), par_file)
 
-# Initialize the model
+# Initialize the model to be trained
 model = make_model(cuda_devices)
 
-# Train patch size must be divisible by the number of blocks of the trained 3D U-Net
+# Training patch size must be divisible by the number of blocks of the trained 3D U-Net
 assert params.train_patch_size[-3]%model.module.n_blocks == 0 and params.train_patch_size[-1]%model.module.n_blocks == 0 and params.train_patch_size[-2]%model.module.n_blocks == 0
 
 # Get the data loading pipeline

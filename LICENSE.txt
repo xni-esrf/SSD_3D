@@ -1,0 +1,4 @@
+The code in the FSC folder is adaptated from https://github.com/cicwi/PyCorrectedEmissionCT, and is under BSD 3-Clause License (see FSC/BSD3.md).
+The code in the model folder is adaptated from https://github.com/ELEKTRONN/elektronn3/blob/master/elektronn3/models/unet.py, and is under MIT License (see models/MIT.md).
+
+The rest of the code is under MIT License (see MIT.md)

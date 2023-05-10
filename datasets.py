@@ -2,108 +2,17 @@ import numpy as np
 import torch
 import torchvision
 from torch.utils.data import DataLoader
+import json
 
 import torchio as tio
 
 
-
+# Get (1) path to dataset volumes, (2) volume shape, (3) crop shape if any, (4) crop position if any
+# These info must be specified in the metadata folder
 def get_dataset_info(dataset_name):
-    
-    dataset_into = {}
-
-    if dataset_name[0:7] == "CB_30nm":
-        dataset_into["test_volume_path"] = "/data/id16a/inhouse4/staff/ap/liam/neural-super-res/data/n2i_reduced_angles/volFilesCBxs_lobV/CBxs_lobV_bottomp100um_30nm_rectwopassdb9_crop.vol"
-        dataset_into["split1_volume_path"] = "/data/id16a/inhouse4/staff/ap/liam/neural-super-res/data/n2i_reduced_angles/volFilesCBxs_lobV/CBxs_lobV_bottomp100um_30nm_rectwopassdb9_split1.vol"
-        dataset_into["split2_volume_path"] = "/data/id16a/inhouse4/staff/ap/liam/neural-super-res/data/n2i_reduced_angles/volFilesCBxs_lobV/CBxs_lobV_bottomp100um_30nm_rectwopassdb9_split2.vol"
-        dataset_into["volume_shape"] = [1500,1500,1500]
-        if dataset_name == "CB_30nm":
-            dataset_into["offset_crop"]=None
-            dataset_into["crop_subvolume_shape"]=None
-        elif dataset_name == "CB_30nm_1000x1000":
-            dataset_into["offset_crop"]=[500,500,500]
-            dataset_into["crop_subvolume_shape"]=[1000,1000,1000]
-        elif dataset_name == "CB_30nm_500x500":
-            dataset_into["offset_crop"]=[500,500,500]
-            dataset_into["crop_subvolume_shape"]=[500,500,500]
-        elif dataset_name == "CB_30nm_500x500_test":
-            dataset_into["offset_crop"]=[0,1000,1000]
-            dataset_into["crop_subvolume_shape"]=[500,500,500]
-
-    elif dataset_name[0:7]=="OB_25nm":
-        dataset_into["test_volume_path"] = "/data/projects/xni/ls2892/volfloat/c353_epl_70um_ppy_md_025nm_rec_db15_.vol"
-        dataset_into["split1_volume_path"] = "/data/projects/xni/ls2892/volfloat/c353_epl_70um_ppy_md_025nm_rec_db15_split0.vol"
-        dataset_into["split2_volume_path"] = "/data/projects/xni/ls2892/volfloat/c353_epl_70um_ppy_md_025nm_rec_db15_split1.vol"
-        dataset_into["volume_shape"] = [2048,2400,2400]
-        if dataset_name == "OB_25nm":
-            dataset_into["offset_crop"]=[274,450,450]
-            dataset_into["crop_subvolume_shape"]=[1500,1500,1500]
-        elif dataset_name == "OB_25nm_1000x1000":
-            dataset_into["offset_crop"]=[774,950,950]
-            dataset_into["crop_subvolume_shape"]=[1000,1000,1000]
-        elif dataset_name == "OB_25nm_500x500":
-            dataset_into["offset_crop"]=[774,950,950]
-            dataset_into["crop_subvolume_shape"]=[500,500,500]
-        elif dataset_name == "OB_25nm_500x500_test":
-            dataset_into["offset_crop"]=[274,450,1450]
-            dataset_into["crop_subvolume_shape"]=[500,500,500]
-
-    elif dataset_name[0:27]=="distsplit_OB_25nm_1000x1000":
-        dataset_into["test_volume_path"] = "/data/visitor/ls2892/id16a/c353_epl_70um_ppy/.volfloat_nobackup/c353_epl_70um_ppy_md_025nm_rec_.vol"
-        dataset_into["split1_volume_path"] = "/data/visitor/ls2892/id16a/c353_epl_70um_ppy/.volfloat_nobackup/c353_epl_70um_ppy_md_025nm_rec_split13_.vol"
-        dataset_into["split2_volume_path"] = "/data/visitor/ls2892/id16a/c353_epl_70um_ppy/.volfloat_nobackup/c353_epl_70um_ppy_md_025nm_rec_split24_.vol"
-        dataset_into["volume_shape"] = [2048,2048,2048]
-        dataset_into["offset_crop"]=[524,524,524]
-        dataset_into["crop_subvolume_shape"]=[1000,1000,1000]
-
-    elif dataset_name[0:27]=="distsplit_OB_25nm_1500x1500":
-        dataset_into["test_volume_path"] = "/data/visitor/ls2892/id16a/c353_epl_70um_ppy/.volfloat_nobackup/c353_epl_70um_ppy_md_025nm_rec_.vol"
-        dataset_into["split1_volume_path"] = "/data/visitor/ls2892/id16a/c353_epl_70um_ppy/.volfloat_nobackup/c353_epl_70um_ppy_md_025nm_rec_split13_.vol"
-        dataset_into["split2_volume_path"] = "/data/visitor/ls2892/id16a/c353_epl_70um_ppy/.volfloat_nobackup/c353_epl_70um_ppy_md_025nm_rec_split24_.vol"
-        dataset_into["volume_shape"] = [2048,2048,2048]
-        dataset_into["offset_crop"]=[274,274,274]
-        dataset_into["crop_subvolume_shape"]=[1500,1500,1500]
-
-    elif dataset_name[0:7]=="WB_50nm":
-        dataset_into["test_volume_path"] = "/data/projects/xni/ls3033/id16a/WB3/volfloat/WB3_hinge4_050nm_rec27db_crop.vol"
-        dataset_into["split1_volume_path"] = "/data/projects/xni/ls3033/id16a/WB3/volfloat/WB3_hinge4_050nm_rec27db_split1.vol"
-        dataset_into["split2_volume_path"] = "/data/projects/xni/ls3033/id16a/WB3/volfloat/WB3_hinge4_050nm_rec27db_split2.vol"
-        dataset_into["volume_shape"] = [1024,512,512]
-        dataset_into["offset_crop"]=[100,6,6]
-        dataset_into["crop_subvolume_shape"] = [500,500,500]
-
-    elif dataset_name[0:9]== "V357_18nm":
-        dataset_into["test_volume_path"] = "/data/id16a/inhouse4/staff/ap/liam/neural-super-res/data/temp/v357_55um_3K_018nm_rec_app1_1500x1500/v357_55um_3K_018nm_rec_app1_1500x1500_crop.vol"
-        dataset_into["split1_volume_path"] = "/data/id16a/inhouse4/staff/ap/liam/neural-super-res/data/temp/v357_55um_3K_018nm_rec_app1_1500x1500/v357_55um_3K_018nm_rec_app1_1500x1500_split0.vol"
-        dataset_into["split2_volume_path"] = "/data/id16a/inhouse4/staff/ap/liam/neural-super-res/data/temp/v357_55um_3K_018nm_rec_app1_1500x1500/v357_55um_3K_018nm_rec_app1_1500x1500_split1.vol"
-        dataset_into["volume_shape"] = [1500,1500,1500]
-        dataset_into["offset_crop"]=[0,0,0]
-        dataset_into["crop_subvolume_shape"] = None
-
-    elif dataset_name=="ring_test_1":
-        dataset_into["split1_volume_path"] = "/data/id16a/inhouse4/staff/dk/cont_denoise_test/aligned_volumes/pos1.tif"
-        dataset_into["split2_volume_path"] = "/data/id16a/inhouse4/staff/dk/cont_denoise_test/aligned_volumes/pos2.tif"
-        dataset_into["volume_shape"] = [1000,1000,1000]
-        dataset_into["offset_crop"]=[0,0,0]
-        dataset_into["crop_subvolume_shape"] = None
-
-    elif dataset_name=="ring_test_2":
-        dataset_into["split1_volume_path"] = "/data/projects/xni/staff/alaugros/noise2inverse/datasets/ring_test_2/split1.npy"
-        dataset_into["split2_volume_path"] = "/data/projects/xni/staff/alaugros/noise2inverse/datasets/ring_test_2/split2.npy"
-        dataset_into["volume_shape"] = [1500,1500,1500]
-        dataset_into["offset_crop"]=[0,0,0]
-        dataset_into["crop_subvolume_shape"] = None
-
-    elif dataset_name=="X2O2_30nm":
-        dataset_into["split1_volume_path"] = "/data/projects/xni/staff/alaugros/noise2inverse/datasets/X2O2_WM_cont_030nm_a_registered/split1.npy"
-        dataset_into["split2_volume_path"] = "/data/projects/xni/staff/alaugros/noise2inverse/datasets/X2O2_WM_cont_030nm_a_registered/split2.npy"
-        dataset_into["volume_shape"] = [1500,1500,1500]
-        dataset_into["offset_crop"]=[0,0,0]
-        dataset_into["crop_subvolume_shape"] = None
-
-    else:
-        raise Exception("No information about provided dataset name") 
-
-    return dataset_into
+    with open("metadata/" + dataset_name + ".json", 'r') as dataset_info_file:
+        dataset_info = json.load(dataset_info_file)
+    return dataset_info
 
 # Pick one of the 24 rotational symmetries of a cube. Give this orientation to the provided tensors. A horizontal flip is then randomly applied with a 0.5 probability.
 # Note that the same transformation is applied to all given tensors.
@@ -186,6 +95,8 @@ def get_test_aggregator_loader(dataset_name, test_patch_size, patch_overlap, bat
         test_volume_path = dataset_info["split1_volume_path"]
     elif projection_set == "split2_projections":
         test_volume_path = dataset_info["split2_volume_path"]
+    else:
+        raise Exception("Projection set name can only be : all_projections, split1_volume_path or split2_volume_path")
 
     # Load volume to be denoise. Then crop if specified
     test_volume = np.fromfile(test_volume_path, dtype=np.float32).reshape(volume_shape)
