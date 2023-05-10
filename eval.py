@@ -13,31 +13,22 @@ import torchio as tio
 import datasets 
 from models.unet import UNet
 
-def bit_quantization(array, num_bits):
-    print("quantization")
-    max_value = np.max(array)
-    min_value = np.min(array)
-    step_size = (max_value - min_value) / (2 ** num_bits - 1)
-    quantized_array = np.round((array - min_value) / step_size) * step_size + min_value
-    return quantized_array
-
 def parse_arguments():
     """
      Parses the users command line input
      Returns: NameSpace object containing all needed user inputs
      """
-    parse = ArgumentParser(description="Denoise a dataset using a given Noise2Inverse model")
-    parse.add_argument('dataset_name', help="Dataset name")
-    parse.add_argument('weights_path', help='The torch file containing the trained weights to use for denoising')
-    parse.add_argument('output_dir', help='The directory that the final denoised images will be output to ')
-    parse.add_argument('--overlap_patch_size', nargs=3, type=int, default=[100,100,100], help='overlapping area to crop around each predicted patch')
-    parse.add_argument('--overlap_mode', type=str, default="hann", help='')
-    parse.add_argument('--print_orthogonal', action='store_const', default=1, const=3, help='Slice the final denoised volume in the xy, yz, and xz planes. Slices only in the xy if off')
+    parse = ArgumentParser(description="Load a model trained with Noise2Iverse, and use it to denoise a volume")
+    parse.add_argument('dataset_name', help="Name of the processed dataset. Information about the processed dataset must be set in the dataset.py file")
+    parse.add_argument('checkpoint_path', help='The path of the checkpoint to be loaded')
+    parse.add_argument('output_dir', help='The directory where the denoised volume is saved')
+    parse.add_argument('--extraction_stride_sizes', nargs=3, type=int, default=[50,50,50], help='Specify the stride used to extract successive patches for each dimension. If zeros are given, extracted patches do not overlap.')
+    parse.add_argument('--print_orthogonal', action='store_const', default=1, const=3, help='If set, denoised volumes is saved three times. Saved images of each occurence are respectively oriented in the xy, xz, and yz planes. If not set, only the xy plane is considered')
     parse.add_argument('--batch_size', default=32, type=int, help='')
-    parse.add_argument('--projection_set', type=str, default="all_projections", help='')
+    parse.add_argument('--projection_set', type=str, default="all_projections", help='Specify which recontruction should be loaded. This reconstruction is defined by the projection set used to get it')
     return parse.parse_args()
 
-def load_model(weights_path, cuda_devices):
+def load_model(checkpoint_path, cuda_devices):
 
     model = UNet(
     in_channels= 1,
@@ -55,7 +46,7 @@ def load_model(weights_path, cuda_devices):
     conv_mode= 'same')
 
     # Load weights
-    state = torch.load(weights_path)
+    state = torch.load(checkpoint_path)
     model.to(cuda_devices[0])
     model = torch.nn.DataParallel(model, cuda_devices)
     model.load_state_dict(state["state_dict"])
@@ -65,16 +56,6 @@ def load_model(weights_path, cuda_devices):
     return model
 
 def save_output(final_vol, print_directions, output_dir):
-    """
-    Print out the final denoised volume as a series of 2D tiff file slices
-    Args:
-        final_vol: The final denoised volume as a numpy array
-        print_directions: The number of directions to output slices from
-        output_dir: The directory where output images will be saved
-
-    Returns:
-
-    """
     for i in range(print_directions):
         Path(output_dir / f"{i}").mkdir(exist_ok=True)
         for j in range(final_vol.shape[0]):
@@ -94,40 +75,35 @@ cudabase_name = "cuda:" + str(cuda_devices[0])
 cudabase = torch.device(cudabase_name)
 
 params = parse_arguments()
-# Load in the parameters of the trained network
-network_param_file = open(str(Path(params.weights_path).parent/ "params.json"), 'r')
+
+# Load the hyper-parameters used to train the loaded model
+network_param_file = open(str(Path(params.checkpoint_path).parent/ "params.json"), 'r')
 network_params = json.load(network_param_file)
 test_patch_size = network_params['train_patch_size']
 
-# Make the folders where denoised slices are saved
-if params.output_dir[-1] == '/':
-	params.output_dir = params.output_dir[0:-1]
-if os.path.exists(params.output_dir[0:-len(params.output_dir.split('/')[-1])]) == False:
-	os.mkdir(params.output_dir[0:-len(params.output_dir.split('/')[-1])])
-if os.path.exists(params.output_dir)  == False:
-	os.mkdir(params.output_dir)
+# Create the directory where denoised slices are saved
+output_dir = Path(params.output_dir)
+output_dir.mkdir(exist_ok=True)
 
-# Load in model to use for denoising
-model = load_model(Path(params.weights_path), cuda_devices)
+model = load_model(Path(params.checkpoint_path), cuda_devices)
 
-# Prepare the dataset to be denoised
 with torch.no_grad():
-    aggregator, loader = datasets.get_test_aggregator_loader(params.dataset_name, test_patch_size, params.overlap_patch_size,  params.overlap_mode ,params.batch_size, projection_set=params.projection_set)
+    # Build data loading pipeline
+    aggregator, loader = datasets.get_test_aggregator_loader(params.dataset_name, test_patch_size, params.extraction_stride_sizes ,params.batch_size, projection_set=params.projection_set)
+    # Inference loop
     for batch in tqdm(loader):
         raw_patch, location = batch["test_volume"][tio.DATA],  batch[tio.LOCATION]
         raw_patch.to(cudabase)
-        pred_patch = model(raw_patch)
 
-        aggregator.add_batch(pred_patch.detach().cpu(), location)
+        pred_patch = model(raw_patch)
+        aggregator.add_batch(pred_patch.detach().cpu(), location)    
     pred_volume = aggregator.get_output_tensor()
 
 pred_volume = np.asarray(pred_volume)
 pred_volume = np.squeeze(pred_volume)
 
-#pred_volume = bit_quantization(pred_volume, 8)
-
 # Save denoised volume
-save_output(pred_volume, params.print_orthogonal, Path(params.output_dir))
+save_output(pred_volume, params.print_orthogonal, output_dir)
 
 
 
