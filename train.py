@@ -19,8 +19,8 @@ def parse_arguments():
     parse.add_argument('--loaded_checkpoint_path', default=None, help="If set, load the checkpoint located at the provided path")
     parse.add_argument('--train_patch_size', default=[100,100,100], nargs=3, type=int, help='Training patch size')
     parse.add_argument('--nb_patch_per_epoch', default=18000, type=int, help="Define the number of patches to process in one epoch. It basically sets the duration of one epoch") 
-    parse.add_argument('--nb_train_epoch', default=100, type=int, help="The number of training epochs")
-    parse.add_argument('--save_interval', default=5, type=int, help='The number of epochs to run between each checkpoint saving')
+    parse.add_argument('--nb_train_epoch', default=50, type=int, help="The number of training epochs")
+    parse.add_argument('--save_interval', default=1, type=int, help='The number of epochs to run between each checkpoint saving')
     parse.add_argument('--batch_size', default=32, type=int, help="The number of patch per batch")
     parse.add_argument('--lr', default=0.001, type=float, help="The learning rate")
     parse.add_argument('--weight_decay', default=0.0001, type=float, help="The weight decay coefficient")
@@ -68,9 +68,8 @@ def train_model(dl, model, loss_func, optimizer, save_interval, checkpoint_dir, 
         model.load_state_dict(state['state_dict'])
         optimizer.load_state_dict(state['optimizer'])
         start_epoch_nb = state['epoch']+1
-        print(start_epoch_nb)
 
-    # training loop
+    # Training loop
     loss_values = []
     for epoch in range(start_epoch_nb, nb_train_epoch):
         epoch_loss = 0

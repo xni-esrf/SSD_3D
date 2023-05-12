@@ -32,20 +32,20 @@ For any datasets, metadata that must be provided are: path to the volume reconst
 
 Launch a Noise2Inverse training on the provided volume by running:
 ```
-python train.py OB_25nm results/checkpoints/test3 results/train_losses/test3
+python train.py NP_50nm results/checkpoints/test results/train_losses/test --nb_train_epoch 30
 ```
 
 Denoise the provided volume using the model trained above by running:
 ```
-python eval.py OB_25nm results/checkpoints/test3/weights_epoch_60.torch results/denoised_volumes/test3/epoch60 --nb_bit_quant 8
+python eval.py NP_50nm results/checkpoints/test/weights_epoch_10.torch results/denoised_volumes/test/epoch10 --print_orthogonal --nb_bit_quant 8
 ```
 
-Effective resolution can be obtained in two steps (1) denoise the two volumes reconstructed using a projection subset, (2) Compute the fourier shell correlation curve using the denoised volumes. This can be done by running:
+Effective resolution can be obtained in two steps (1) denoise the two volumes that have been reconstructed using a projection subset, (2) Compute a fourier shell correlation curve using the denoised volumes. This can be done by running:
 
 ```
-python eval.py OB_25nm results/checkpoints/test3/weights_epoch_60.torch results/denoised_volumes/test3/epoch60_split1_8bit --projection_set split1_projections --nb_bit_quant 8
-python eval.py OB_25nm results/checkpoints/test3/weights_epoch_60.torch results/denoised_volumes/test3/epoch60_split2_8bit --projection_set split2_projections --nb_bit_quant 8
-python fsc_analysis_multi_plots.py results/denoised_volumes/test3/epoch60_split1_8bit/0 results/denoised_volumes/test3/epoch60_split2_8bit/0 results/FSC_curves/test3 epoch60_8bit
+python eval.py NP_50nm results/checkpoints/test/weights_epoch_10.torch results/denoised_volumes/test/epoch10_split1_8bit --projection_set split1_projections --nb_bit_quant 8
+python eval.py NP_50nm results/checkpoints/test/weights_epoch_10.torch results/denoised_volumes/test/epoch10_split2_8bit --projection_set split2_projections --nb_bit_quant 8
+python fsc_analysis_multi_plots.py results/denoised_volumes/test/epoch10_split1_8bit/0 results/denoised_volumes/test/epoch10_split2_8bit/0 results/FSC_curves/test epoch10_8bit
 ```
 
 
