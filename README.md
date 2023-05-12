@@ -35,6 +35,9 @@ Launch a Noise2Inverse training on the provided volume by running:
 python train.py NP_50nm results/checkpoints/test results/train_losses/test --nb_train_epoch 30
 ```
 
+Please note that this training requires more than 100GB GPU RAM. Consider reducing patch size of batch size when having less RAM available.
+
+
 Denoise the provided volume using the model trained above by running:
 ```
 python eval.py NP_50nm results/checkpoints/test/weights_epoch_10.torch results/denoised_volumes/test/epoch10 --print_orthogonal --nb_bit_quant 8
