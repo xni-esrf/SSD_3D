@@ -1,4 +1,5 @@
 import os
+from pathlib import Path
 import re
 import tifffile
 import numpy as np
@@ -35,9 +36,8 @@ if __name__ == '__main__':
     file_name = parser.file_name
     nb_bit_quant = parser.nb_bit_quant
 
-    if os.path.exists(parser.output_dir) == False:
-        print(parser.output_dir + " does not exist")
-        exit()
+    output_dir = Path(output_dir)
+    output_dir.mkdir(exist_ok=True)
 
     print("Reading tiff files to build input volumes...")
     vol1_fnames = [str(vol1_path)+'/'+f for f in os.listdir(vol1_path) if os.path.isfile(os.path.join(vol1_path, f))]

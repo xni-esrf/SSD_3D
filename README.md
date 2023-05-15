@@ -24,8 +24,8 @@ The commands below assume that the downloaded archive is extracted in the 'volum
 ## Dataset Metadata
 
 Before launching a training on a dataset, information about this dataset must be provided in a json file stored in the metadata folder.
-To give an example, the metadata of the provided fly neuropil volume can be found in the metadata folder.
-For any datasets, metadata that must be provided are: path to the volume reconstructed using all projections, the paths of the volumes reconsutructed using a projection subset, volume size, position of an potential crop, Size of the potential crop.
+For example, the metadata of the provided fly neuropil volume can be found in the metadata folder.
+For any datasets, metadata that must be provided are: path to the volume reconstructed using all projections, the paths of the volumes reconsutructed using a projection subset, volume size, position of an potential crop, size of the potential crop.
 
 
 ## Demonstration Commands
@@ -34,9 +34,7 @@ Launch a Noise2Inverse training on the provided volume by running:
 ```
 python train.py NP_50nm results/checkpoints/test results/train_losses/test --nb_train_epoch 30
 ```
-
 Please note that this training requires more than 100GB GPU RAM. Consider reducing patch size of batch size when having less RAM available.
-
 
 Denoise the provided volume using the model trained above by running:
 ```

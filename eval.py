@@ -82,6 +82,7 @@ test_patch_size = network_params['train_patch_size']
 
 # Create the directory where denoised slices are saved
 output_dir = Path(params.output_dir)
+output_dir.parent.mkdir(exist_ok=True)
 output_dir.mkdir(exist_ok=True)
 
 model = load_model(Path(params.checkpoint_path), cuda_devices)
