@@ -17,23 +17,27 @@ def parse_arguments():
     parse.add_argument('checkpoint_dir', help='Path of the directory where checkpoints are stored')
     parse.add_argument('loss_dir', help='Path of the directory where the training loss curve is stored')
     parse.add_argument('--loaded_checkpoint_path', default=None, help="If set, load the checkpoint located at the provided path")
-    parse.add_argument('--train_patch_size', default=[100,100,100], nargs=3, type=int, help='Training patch size')
-    parse.add_argument('--nb_patch_per_epoch', default=18000, type=int, help="Define the number of patches to process in one epoch. It basically sets the duration of one epoch") 
-    parse.add_argument('--nb_train_epoch', default=50, type=int, help="The number of training epochs")
-    parse.add_argument('--save_interval', default=1, type=int, help='The number of epochs to run between each checkpoint saving')
+    parse.add_argument('--train_patch_size', default=[96,96,96], nargs=3, type=int, help='Training patch size')
+    parse.add_argument('--nb_patch_per_epoch', default=17600, type=int, help="Define the number of patches to process in one epoch. It basically sets the duration of one epoch") 
+    parse.add_argument('--nb_train_epoch', default=200, type=int, help="The number of training epochs")
+    parse.add_argument('--save_interval', default=10, type=int, help='The number of epochs to run between each checkpoint saving')
     parse.add_argument('--batch_size', default=32, type=int, help="The number of patch per batch")
-    parse.add_argument('--lr', default=0.001, type=float, help="The learning rate")
+    parse.add_argument('--lr', default=0.0005, type=float, help="The learning rate")
+    parse.add_argument('--loss_scaling_factor', default=1000, type=float, help="The loss scaling factor")
     parse.add_argument('--weight_decay', default=0.0001, type=float, help="The weight decay coefficient")
+    parse.add_argument('--nb_blocks', default=4, type=int, help="")
+    parse.add_argument('--nb_first_filters', default=56, type=int, help="")
+    parse.add_argument('--normalization', action='store_const', default=False, const=True, help="")
     return parse.parse_args()
 
 
-def make_model(cuda_devices):
+def make_model(n_blocks, start_filts, cuda_devices):
 	
     model = UNet(
     in_channels= 1,
     out_channels= 1,
-    n_blocks= 4,
-    start_filts=40,
+    n_blocks= n_blocks,
+    start_filts=start_filts,
     up_mode= 'transpose',
     merge_mode= 'concat',
     planar_blocks= (),
@@ -47,6 +51,8 @@ def make_model(cuda_devices):
     model.to(torch.device("cuda:0"))
     model = torch.nn.DataParallel(model,cuda_devices)
 
+    print("number parameters : {}".format(sum(p.numel() for p in model.parameters()))) 
+
     return model
 
 def save_model(model, optimizer, epoch, save_path):
@@ -57,7 +63,7 @@ def save_model(model, optimizer, epoch, save_path):
     }
     torch.save(state, save_path)
 
-def train_model(dl, model, loss_func, optimizer, save_interval, checkpoint_dir, loaded_checkpoint_path, nb_train_epoch, device):
+def train_model(dl, model, loss_func, optimizer, loss_scaling_factor, save_interval, checkpoint_dir, loaded_checkpoint_path, nb_train_epoch, device):
 
     start_epoch_nb = 0
 
@@ -91,10 +97,9 @@ def train_model(dl, model, loss_func, optimizer, save_interval, checkpoint_dir, 
             # Proceed to a training step
             optimizer.zero_grad()
             pred = model(input)
-            loss_val = loss_func(pred,target)
+            loss_val = loss_func(pred,target)*loss_scaling_factor
             loss_val.backward()
             optimizer.step()
-
             epoch_loss += loss_val/len(dl)
         print("Mean loss value of the epoch : {}".format(epoch_loss))
 
@@ -139,17 +144,17 @@ with open(checkpoint_dir / "params.json", 'w') as par_file:
     json.dump(dict(vars(params)), par_file)
 
 # Initialize the model to be trained
-model = make_model(cuda_devices)
+model = make_model(params.nb_blocks, params.nb_first_filters, cuda_devices)
 
 # Training patch size must be divisible by the number of blocks of the trained 3D U-Net
 assert params.train_patch_size[-3]%model.module.n_blocks == 0 and params.train_patch_size[-1]%model.module.n_blocks == 0 and params.train_patch_size[-2]%model.module.n_blocks == 0
 
 # Get the data loading pipeline
-train_loader = datasets.get_train_patch_loader(params.dataset_name, params.train_patch_size, params.batch_size, params.nb_patch_per_epoch)
+train_loader = datasets.get_train_patch_loader(params.dataset_name, params.train_patch_size, params.batch_size, params.nb_patch_per_epoch, normalization=params.normalization)
 
 # Train model
 loss_func = torch.nn.MSELoss()
 optimizer = torch.optim.Adam(model.parameters(), weight_decay=params.weight_decay, lr=params.lr)
-loss_values = train_model(train_loader, model, loss_func, optimizer, params.save_interval, checkpoint_dir, params.loaded_checkpoint_path, params.nb_train_epoch, torch.device("cuda:0"))
+loss_values = train_model(train_loader, model, loss_func, optimizer, params.loss_scaling_factor, params.save_interval, checkpoint_dir, params.loaded_checkpoint_path, params.nb_train_epoch, torch.device("cuda:0"))
 
 save_train_loss(loss_values, loss_dir)
