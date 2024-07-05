@@ -47,8 +47,10 @@ if __name__ == '__main__':
 
     vol1 = [tifffile.imread(fname) for fname in vol1_fnames]
     vol2 = [tifffile.imread(fname) for fname in vol2_fnames]
-    vol1 = np.array(vol1)
-    vol2 = np.array(vol2)
+    vol1 = np.squeeze(np.array(vol1))
+    vol2 = np.squeeze(np.array(vol2))
+
+    assert vol1.shape[0] == vol1.shape[1] == vol1.shape[2]
 
     if nb_bit_quant:
         print("Quantizing pixel values...")

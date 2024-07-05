@@ -43,7 +43,7 @@ def geom_transform(tensors_to_transform):
     return tensors_to_transform
 
 
-def get_train_patch_loader(dataset_name, training_patch_size, batch_size, nb_patch_per_epoch):
+def get_train_patch_loader(dataset_name, training_patch_size, batch_size, nb_patch_per_epoch, normalization):
 
     # Load the dataset meta-data
     dataset_info = get_dataset_info(dataset_name)
@@ -66,12 +66,21 @@ def get_train_patch_loader(dataset_name, training_patch_size, batch_size, nb_pat
     if len(volume_shape) == 3:
         split1_volume = np.expand_dims(split1_volume,0)
         split2_volume = np.expand_dims(split2_volume,0)
+    
+    if normalization==True:
+        print("Dataset normalization in progress...")
+        mean_volumes = (split1_volume.mean() + split2_volume.mean())/2
+        split1_volume = split1_volume-mean_volumes
+        split2_volume = split2_volume-mean_volumes
+
+        std_volumes = (split1_volume.std() + split2_volume.std())/2
+        split1_volume = split1_volume/std_volumes
+        split2_volume = split2_volume/std_volumes
 
     N2I_subject = tio.Subject(split1_volume=tio.ScalarImage(tensor=split1_volume), split2_volume=tio.ScalarImage(tensor=split2_volume))
     N2I_dataset = tio.data.SubjectsDataset([N2I_subject])
 
     patch_sampler = tio.data.UniformSampler(training_patch_size)
-    # TODO, investigate why trainings get slower when num_worker > 0
     N2I_queue = tio.data.Queue(N2I_dataset, max_length=batch_size*nb_patch_per_epoch, samples_per_volume=nb_patch_per_epoch, sampler=patch_sampler, num_workers=0)
 
 
@@ -80,8 +89,18 @@ def get_train_patch_loader(dataset_name, training_patch_size, batch_size, nb_pat
 
     return patch_loader
 
+def get_list_train_patch_loader(list_dataset_names, training_patch_size, batch_size, nb_patch_per_epoch):
+    
+    assert batch_size%(len(list_dataset_names)*2) ==0
+    assert nb_patch_per_epoch%len(list_dataset_names) ==0
 
-def get_test_aggregator_loader(dataset_name, test_patch_size, patch_overlap, batch_size, projection_set="all_projections"):
+    list_loaders = []
+    for name in list_dataset_names:
+        cur_loader = get_train_patch_loader(name, training_patch_size, batch_size//len(list_dataset_names), nb_patch_per_epoch//len(list_dataset_names))
+        list_loaders.append(cur_loader)
+    return list_loaders
+
+def get_test_aggregator_loader(dataset_name, test_patch_size, patch_overlap, batch_size, projection_set, normalization):
 
     # Load the dataset meta-data
     dataset_info = get_dataset_info(dataset_name)
@@ -96,7 +115,7 @@ def get_test_aggregator_loader(dataset_name, test_patch_size, patch_overlap, bat
     elif projection_set == "split2_projections":
         test_volume_path = dataset_info["split2_volume_path"]
     else:
-        raise Exception("Projection set name can only be : all_projections, split1_volume_path or split2_volume_path")
+        raise Exception("Projection set name can only be : all_projections, split1_projections or split2_projections")
 
     # Load volume to be denoise. Then crop if specified
     test_volume = np.fromfile(test_volume_path, dtype=np.float32).reshape(volume_shape)
@@ -106,6 +125,15 @@ def get_test_aggregator_loader(dataset_name, test_patch_size, patch_overlap, bat
     # If provided shape is 3D, add an extra dimension to form the pytorch channel dimension
     assert len(volume_shape) == 3
     test_volume = np.expand_dims(test_volume,0)
+
+    if normalization==True:
+        print("Dataset normalization in progress...")
+        mean_volume = test_volume.mean()
+        test_volume = test_volume-mean_volume
+
+        std_volume = test_volume.std()
+        test_volume = test_volume/std_volume
+
 
     # Build the data loading pipeline
     test_subject = tio.Subject(test_volume=tio.ScalarImage(tensor=test_volume))

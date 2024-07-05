@@ -125,7 +125,7 @@ for num_view in range(nb_views):
 
     # Mark some pixel to recognize the first image in the saved gif
     if image_mark != 0:
-        img1[0:image_mark,0:image_mark]=255.
+        img1[0:image_mark,0:image_mark]=0
 
     #TODO automatic contrast adaptation
 
