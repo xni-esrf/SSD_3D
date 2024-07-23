@@ -107,6 +107,7 @@ def get_test_aggregator_loader(dataset_name, test_patch_size, patch_overlap, bat
     volume_shape = dataset_info["volume_shape"]
     offset_crop = dataset_info["offset_crop"]
     crop_subvolume_shape = dataset_info["crop_subvolume_shape"]
+    
     # Pick the dataset that have been reconstructed using the specified projection set.
     if projection_set == "all_projections":
         test_volume_path = dataset_info["test_volume_path"]

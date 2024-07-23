@@ -15,7 +15,7 @@ def parse_arguments():
     parse.add_argument('vol2_path', help='The directory containing the split1 volume')
     parse.add_argument('output_dir', help="The path of the directory where the plot is saved")
     parse.add_argument('file_name', default="", help="The name of the saved file")
-    parse.add_argument('--nb_bit_quant', default=None, type=int, help='Quantize value of input arrays before computing FSC. The number of quantization levels equals 2^num_bits')
+    parse.add_argument('--nb_bit_quant', default=8, type=int, help='Quantize value of input arrays before computing FSC. The number of quantization levels equals 2^num_bits')
 
     return parse.parse_args()
 
@@ -53,7 +53,6 @@ if __name__ == '__main__':
     assert vol1.shape[0] == vol1.shape[1] == vol1.shape[2]
 
     if nb_bit_quant:
-        print("Quantizing pixel values...")
         vol1 = bit_quantization(vol1,nb_bit_quant)
         vol2 = bit_quantization(vol2,nb_bit_quant)
 

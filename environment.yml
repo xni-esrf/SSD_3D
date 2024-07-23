@@ -1,4 +1,4 @@
-name: noise2inverse_xni_torchio_cuda12
+name: n2i_xni_cuda12
 dependencies:
   - python=3.11
   - numpy=1.26

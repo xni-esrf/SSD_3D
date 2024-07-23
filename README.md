@@ -1,7 +1,6 @@
 # XNI Noise2Inverse Implementation
 
-Implementation of the Noise2Inverse algorithm adaptated to 3D data.
-This code corresponds to the "3d implementation" used in the paper entitled "Self-supervised image restoration in coherent X-ray neuronal microscopy".
+Code associated with the paper entitled "Self-supervised image restoration in coherent X-ray neuronal microscopy".
 
 
 ## Installation
@@ -15,11 +14,11 @@ conda env create -f environment.yml
 To activate the created environment:
 
 ```
-conda activate noise2inverse_3d_xni
+conda activate n2i_xni_cuda12
 ```
 
 To test this code, you can download a volume imaging a fly neuropile here : https://drive.google.com/file/d/1tEbyaTwU0S8uQ21TYoluTgclkJflORvl/view?usp=sharing
-The commands below assume that the downloaded archive is extracted in the 'volumes' folder
+All commands below assume that the downloaded archive is extracted in the 'volumes' folder
 
 ## Dataset Metadata
 
@@ -30,23 +29,23 @@ For any datasets, metadata that must be provided are: path to the volume reconst
 
 ## Demonstration Commands
 
-Launch a Noise2Inverse training on the provided volume by running:
+Launch a training on the provided volume by running:
 ```
-python train.py NP_50nm results/checkpoints/test results/train_losses/test --nb_train_epoch 30
+python train.py NP_50nm results/checkpoints/test results/train_losses/test --nb_train_epoch 30 --normalization
 ```
 Please note that this training requires more than 100GB GPU RAM. Consider reducing patch size of batch size when having less RAM available.
 
 Denoise the provided volume using the model trained above by running:
 ```
-python eval.py NP_50nm results/checkpoints/test/weights_epoch_10.torch results/denoised_volumes/test/epoch10 --print_orthogonal --nb_bit_quant 8
+python eval.py NP_50nm results/checkpoints/test/weights_epoch_15.torch results/denoised_volumes/test/epoch15 --print_orthogonal
 ```
 
-Effective resolution can be obtained in two steps (1) denoise the two volumes that have been reconstructed using a projection subset, (2) Compute a fourier shell correlation curve using the denoised volumes. This can be done by running:
+Effective resolution can be obtained in two steps (1) denoise the two training volumes, (2) Compute a fourier shell correlation curve using the denoised volumes. This can be done by running:
 
 ```
-python eval.py NP_50nm results/checkpoints/test/weights_epoch_10.torch results/denoised_volumes/test/epoch10_split1_8bit --projection_set split1_projections --nb_bit_quant 8
-python eval.py NP_50nm results/checkpoints/test/weights_epoch_10.torch results/denoised_volumes/test/epoch10_split2_8bit --projection_set split2_projections --nb_bit_quant 8
-python fsc_analysis_multi_plots.py results/denoised_volumes/test/epoch10_split1_8bit/0 results/denoised_volumes/test/epoch10_split2_8bit/0 results/FSC_curves/test epoch10_8bit
+python eval.py NP_50nm results/checkpoints/test/weights_epoch_15.torch results/denoised_volumes/test/epoch15_split1 --projection_set split1_projections
+python eval.py NP_50nm results/checkpoints/test/weights_epoch_15.torch results/denoised_volumes/test/epoch15_split2 --projection_set split2_projections
+python fsc_analysis_multi_plots.py results/denoised_volumes/test/epoch15_split1/0 results/denoised_volumes/test/epoch15_split2/0 results/FSC_curves/test epoch15.png
 ```
 
 

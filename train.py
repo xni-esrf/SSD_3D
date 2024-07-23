@@ -20,14 +20,13 @@ def parse_arguments():
     parse.add_argument('--train_patch_size', default=[96,96,96], nargs=3, type=int, help='Training patch size')
     parse.add_argument('--nb_patch_per_epoch', default=17600, type=int, help="Define the number of patches to process in one epoch. It basically sets the duration of one epoch") 
     parse.add_argument('--nb_train_epoch', default=200, type=int, help="The number of training epochs")
-    parse.add_argument('--save_interval', default=10, type=int, help='The number of epochs to run between each checkpoint saving')
+    parse.add_argument('--save_interval', default=1, type=int, help='The number of epochs to run between each checkpoint saving')
     parse.add_argument('--batch_size', default=32, type=int, help="The number of patch per batch")
     parse.add_argument('--lr', default=0.0005, type=float, help="The learning rate")
-    parse.add_argument('--loss_scaling_factor', default=1000, type=float, help="The loss scaling factor")
     parse.add_argument('--weight_decay', default=0.0001, type=float, help="The weight decay coefficient")
-    parse.add_argument('--nb_blocks', default=4, type=int, help="")
-    parse.add_argument('--nb_first_filters', default=56, type=int, help="")
-    parse.add_argument('--normalization', action='store_const', default=False, const=True, help="")
+    parse.add_argument('--nb_blocks', default=4, type=int, help="Number of convolution block in the encoder pathway.")
+    parse.add_argument('--nb_first_filters', default=56, type=int, help="Number of filters in the input convolution of the 3D U-Net")
+    parse.add_argument('--normalization', action='store_const', default=False, const=True, help="Normalize training volumes")
     return parse.parse_args()
 
 
@@ -153,8 +152,9 @@ assert params.train_patch_size[-3]%model.module.n_blocks == 0 and params.train_p
 train_loader = datasets.get_train_patch_loader(params.dataset_name, params.train_patch_size, params.batch_size, params.nb_patch_per_epoch, normalization=params.normalization)
 
 # Train model
+loss_scaling_factor = 1000
 loss_func = torch.nn.MSELoss()
 optimizer = torch.optim.Adam(model.parameters(), weight_decay=params.weight_decay, lr=params.lr)
-loss_values = train_model(train_loader, model, loss_func, optimizer, params.loss_scaling_factor, params.save_interval, checkpoint_dir, params.loaded_checkpoint_path, params.nb_train_epoch, torch.device("cuda:0"))
+loss_values = train_model(train_loader, model, loss_func, optimizer, loss_scaling_factor, params.save_interval, checkpoint_dir, params.loaded_checkpoint_path, params.nb_train_epoch, torch.device("cuda:0"))
 
 save_train_loss(loss_values, loss_dir)
