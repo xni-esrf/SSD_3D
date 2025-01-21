@@ -1,5 +1,3 @@
-# XNI Noise2Inverse Implementation
-
 Code associated with the paper entitled "Self-supervised image restoration in coherent X-ray neuronal microscopy".
 
 
