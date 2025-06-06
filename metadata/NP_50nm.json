@@ -1,0 +1,6 @@
+{"test_volume_path" : "volumes/NP_50nm/NP_50nm_500x500_all_projections.vol", 
+"split1_volume_path": "volumes/NP_50nm/NP_50nm_500x500_split1.vol", 
+"split2_volume_path" : "volumes/NP_50nm/NP_50nm_500x500_split2.vol", 
+"volume_shape" : [1024,512,512], 
+"offset_crop":[100,6,6], 
+"crop_subvolume_shape" : [500,500,500]}
